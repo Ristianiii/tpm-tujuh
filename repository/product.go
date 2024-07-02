@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"fmt"
-	"hari-ketiga/tpm-keenam/model"
+	"errors"
+	"tpm-tujuh/model"
 
 	"gorm.io/gorm"
 )
@@ -11,9 +11,9 @@ type ProductPgRepo struct {
 	DB *gorm.DB
 }
 
-func (s *ProductPgRepo) Get() ([]*model.Product, error) {
+func (s *ProductPgRepo) Get(userId int) ([]*model.Product, error) {
 	products := []*model.Product{}
-	err := s.DB.Debug().Find(&products).Error
+	err := s.DB.Debug().Where("user_id = ?", userId).Find(&products).Error
 	return products, err
 }
 
@@ -25,20 +25,26 @@ func (r *ProductPgRepo) Create(product *model.Product) (int, error) {
 	return product.Id, err
 }
 
-func (r *ProductPgRepo) Update(id int, productUpdate *model.ProductUpdate) error {
+func (r *ProductPgRepo) Update(id int, uid int, productUpdate *model.ProductUpdate) error {
 	result := r.DB.Debug().
-		Where("id = ?", id).
+		Where("id = ? AND user_id = ?", id, uid).
 		Updates(model.Product{
 			Name:  productUpdate.Name,
 			Price: productUpdate.Price,
 		})
-	fmt.Printf("Rows affected: %v", result.RowsAffected)
+	if result.RowsAffected == 0 {
+		return errors.New("product not found")
+	}
 	return result.Error
 }
 
-func (s *ProductPgRepo) Delete(id int) error {
-	err := s.DB.Debug().
-		Where("id = ?", id).
-		Delete(&model.Product{}).Error
-	return err
+func (s *ProductPgRepo) Delete(id int, uid int) error {
+	result := s.DB.Debug().
+		Where("id = ? AND user_id = ?", id, uid).
+		Delete(&model.Product{})
+
+	if result.RowsAffected == 0 {
+		return errors.New("product not found")
+	}
+	return result.Error
 }

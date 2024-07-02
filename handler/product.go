@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"hari-ketiga/tpm-keenam/model"
-	"hari-ketiga/tpm-keenam/service"
+	"fmt"
 	"net/http"
 	"strconv"
+	"tpm-tujuh/model"
+	"tpm-tujuh/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,9 +15,18 @@ type ProductHandler struct {
 }
 
 func (u *ProductHandler) Get(ctx *gin.Context) {
-
-	products, err := u.ProductService.Get()
+	userId := ctx.GetString("user_id")
+	uid_int, err := strconv.Atoi(userId)
 	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, model.ProductResponse{
+			Status: "failed",
+			Data:   nil,
+		})
+	}
+
+	products, err := u.ProductService.Get(uid_int)
+	if err != nil {
+		fmt.Print(err)
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, model.ProductResponse{
 			Status: "failed",
 			Data:   nil,
@@ -35,21 +45,34 @@ func (u *ProductHandler) Create(ctx *gin.Context) {
 	if err := ctx.Bind(&productCreate); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, model.ProductResponse{
 			Status: "failed",
-			Data:   nil,
+			Data:   err.Error(),
 		})
+		return
+	}
+
+	userId := ctx.GetString("user_id")
+	uid_int, err := strconv.Atoi(userId)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, model.ProductResponse{
+			Status: "failed",
+			Data:   err.Error(),
+		})
+		return
 	}
 
 	productId, err := u.ProductService.Create(&model.Product{
-		Name:  productCreate.Name,
-		Price: productCreate.Price,
+		Name:   productCreate.Name,
+		Price:  productCreate.Price,
+		UserId: uid_int,
 	})
 
 	productCreate.Id = productId
+	productCreate.UserId = uid_int
 
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, model.ProductResponse{
 			Status: "failed",
-			Data:   nil,
+			Data:   err.Error(),
 		})
 		return
 	}
@@ -66,9 +89,21 @@ func (u *ProductHandler) Delete(ctx *gin.Context) {
 			Status: "failed",
 			Data:   nil,
 		})
+		return
 	}
 	id, _ := strconv.Atoi(idStr)
-	err := u.ProductService.Delete(int(id))
+
+	userId := ctx.GetString("user_id")
+	uid_int, err := strconv.Atoi(userId)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, model.ProductResponse{
+			Status: "failed",
+			Data:   err.Error(),
+		})
+		return
+	}
+
+	err = u.ProductService.Delete(int(id), uid_int)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, model.ProductResponse{
 			Status: "failed",
@@ -98,7 +133,18 @@ func (u *ProductHandler) Update(ctx *gin.Context) {
 			Data:   nil,
 		})
 	}
-	err := u.ProductService.Update(int(id), &productUpdate)
+
+	userId := ctx.GetString("user_id")
+	uid_int, err := strconv.Atoi(userId)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, model.ProductResponse{
+			Status: "failed",
+			Data:   err.Error(),
+		})
+		return
+	}
+
+	err = u.ProductService.Update(int(id), uid_int, &productUpdate)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, model.ProductResponse{
 			Status: "failed",
